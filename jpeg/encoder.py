@@ -7,20 +7,7 @@ from PIL import Image
 
 import jpeg.dct as dct
 import jpeg.huffman as huffman
-
-
-ZIGZAG_INDICES = numpy.empty(64, dtype=numpy.uint8)
-ZIGZAG_INDICES[[
-    0, 1, 5, 6, 14, 15, 27, 28,
-    2, 4, 7, 13, 16, 26, 29, 42,
-    3, 8, 12, 17, 25, 30, 41, 43,
-    9, 11, 18, 24, 31, 40, 44, 53,
-    10, 19, 23, 32, 39, 45, 52, 54,
-    20, 22, 33, 38, 46, 51, 55, 60,
-    21, 34, 37, 47, 50, 56, 59, 61,
-    35, 36, 48, 49, 57, 58, 62, 63,
-]] = numpy.arange(64)
-print(ZIGZAG_INDICES)
+from jpeg.util import ZIGZAG_INDICES, build_q_table
 
 
 class JPEGEncoder:
@@ -36,9 +23,7 @@ class JPEGEncoder:
 
         print(f'block shape: {(self.block_height, self.block_width)}')
 
-        q_table = numpy.empty(64, dtype=numpy.uint8)
-        q_table[ZIGZAG_INDICES] = [16] + [scale] * m + [scale * n] * (63 - m)
-        self.quantization_table = numpy.reshape(q_table, (8, 8))
+        self.quantization_table = build_q_table(m, scale, n)
         print(f'quantization_table: {self.quantization_table}')
 
     def __getitem__(self, key):
@@ -89,7 +74,7 @@ class JPEGEncoder:
         run_length = 0
 
         for ac in ac_coefficients:
-            ac = float(ac)
+            ac = int(ac)
 
             if not ac:
                 run_length += 1
@@ -104,13 +89,12 @@ class JPEGEncoder:
 
         if run_length:
             # Add EOB
-            ret.append((0, 0))
+            ret.append((0, None))
 
         return dc_coefficient, ret
 
     @staticmethod
     def dpcm(dc_coefficients):
-        # reverse: dpcm_dc.cumsum(1)
         padded = numpy.pad(dc_coefficients, ((0, 0), (1, 0)), 'constant')
         return numpy.diff(padded)
 
@@ -147,7 +131,7 @@ class JPEGEncoder:
                     # print('block:', block)
                     nblock = self.normalize(block)
                     # print('nblock:', nblock)
-                    fblock = self.dct(block)
+                    fblock = self.dct(nblock)
                     # print('fblock:', fblock)
                     qblock = self.quantize(fblock)
                     # print('qblock:', qblock)
@@ -164,6 +148,6 @@ class JPEGEncoder:
         frame = self.build_frame(huffman_dc, huffman_rle)
 
         with open(path, 'wb') as f:
-            f.write(frame)
-            print(f'Written to {path}')
+            written = f.write(frame)
+            print(f'Written to {path} ({written})')
 

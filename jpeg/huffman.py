@@ -1,5 +1,7 @@
 import io
 
+import numpy
+
 HUFFMAN_DC_SIZE = {
     0: '00',
     1: '010',
@@ -14,23 +16,30 @@ HUFFMAN_DC_SIZE = {
     10: '11111110',
     11: '111111110',
 }
-HUFFMAN_COMPONENTS = {}
+HUFFMAN_INVERSE_DC_SIZE = {v: k for k, v in HUFFMAN_DC_SIZE.items()}
+
+HUFFMAN_COMPONENTS = {None: ''}
+HUFFMAN_INVERSE_COMPONENTS = {}
 
 # build HUFFMAN_COMPONENTS
 for size in range(12):
-    codes = list(range(2 ** size))
-
     if size == 0:
         values = [0]
+        codes = ['']
     else:
         # positive part
         s = 2 ** (size - 1)
         positive = list(range(s, s + s))
         negative = list(range(1 - s - s, 1 - s))
         values = negative + positive
+        codes = [bin(code)[2:].rjust(size, '0') for code in list(range(2 ** size))]
 
     for value, code in zip(values, codes):
-        HUFFMAN_COMPONENTS[value] = bin(code)[2:].rjust(size, '0')
+        HUFFMAN_COMPONENTS[value] = code
+
+    HUFFMAN_INVERSE_COMPONENTS[size] = dict(zip(codes, values))
+
+del size
 
 HUFFMAN_AC_RL_SIZE = {
     (0, 0): '1010',
@@ -196,6 +205,7 @@ HUFFMAN_AC_RL_SIZE = {
     (15, 10): '1111111111111110',
     (15, 0): '11111111001',
 }
+HUFFMAN_INVERSE_AC_RL_SIZE = {v: k for k, v in HUFFMAN_AC_RL_SIZE.items()}
 
 
 def huffman_dc(dpcm_dc):
@@ -204,19 +214,22 @@ def huffman_dc(dpcm_dc):
 
     for value in dpcm_dc:
         value = int(value)
-        code_for_size = HUFFMAN_DC_SIZE[size]
         code_for_value = HUFFMAN_COMPONENTS[value]
+        size = len(code_for_value)
+        code_for_size = HUFFMAN_DC_SIZE[size]
+        # print(size, value, '=>', code_for_size, code_for_value)
         bits += code_for_size + code_for_value
 
-        while len(bits) > 8:
+        while len(bits) >= 8:
             a, b = bits[:8], bits[8:]
-            # big endian
             bytestream.write(bytes([int(a, 2)]))
             bits = b
 
-    if bits:
-        bits = bits.ljust(8, '0')
-        bytestream.write(bytes([int(bits, 2)]))
+    while bits:
+        a, b = bits[:8], bits[8:]
+        a = a.ljust(8, '0')
+        bytestream.write(bytes([int(a, 2)]))
+        bits = b
 
     return bytestream.getvalue()
 
@@ -225,21 +238,133 @@ def huffman_ac_rle(ac_rle_list):
     bytestream = io.BytesIO()
     bits = ''
 
+    # print(hash(tuple([tuple(rle) for rle in ac_rle_list])))
+
     for ac_rle in ac_rle_list:
+        # print(ac_rle)
+
         for skip, value in ac_rle:
             code_for_value = HUFFMAN_COMPONENTS[value]
             size_for_value = len(code_for_value)
             code_for_size = HUFFMAN_AC_RL_SIZE[(skip, size_for_value)]
             bits += code_for_size + code_for_value
+            # print(skip, size_for_value, value, '=>', code_for_size, code_for_value)
 
-            while len(bits) > 8:
+            while len(bits) >= 8:
                 a, b = bits[:8], bits[8:]
                 bytestream.write(bytes([int(a, 2)]))
                 bits = b
 
-    if bits:
-        bits = bits.ljust(8, '0')
-        bytestream.write(bytes([int(bits, 2)]))
+    while bits:
+        a, b = bits[:8], bits[8:]
+        a = a.ljust(8, '0')
+        bytestream.write(bytes([int(a, 2)]))
+        bits = b
 
     return bytestream.getvalue()
 
+
+def to_bitstream(bytes_):
+    bitstream = io.StringIO()
+
+    for b in bytes_:
+        bitstream.write(bin(b)[2:].rjust(8, '0'))
+
+    bitstream.seek(0)
+    return bitstream
+
+
+def huffman_idc(huffman_encoded_dc):
+    dpcm_dc = []
+    bitstream = to_bitstream(huffman_encoded_dc)
+
+    for_size = True
+    tmp = ''
+
+    while True:
+        b = bitstream.read(1)
+
+        if not b:
+            break
+
+        tmp += b
+
+        try:
+            if for_size:
+                size = HUFFMAN_INVERSE_DC_SIZE[tmp]
+                # print('size:', tmp)
+            else:
+                value = inverse_components[tmp]
+                # print('value:', tmp)
+        except KeyError:
+            continue
+
+        if for_size:
+            if not size:
+                for_size = False
+                value = 0
+                # print(size, value)
+                dpcm_dc.append(value)
+            else:
+                inverse_components = HUFFMAN_INVERSE_COMPONENTS[size]
+        else:
+            # print(size, value)
+            dpcm_dc.append(value)
+
+        tmp = ''
+        for_size = not for_size
+
+    return dpcm_dc
+
+
+def huffman_iac_rle(huffman_encoded_rle):
+    rle_list = []
+    rle = []
+    bitstream = to_bitstream(huffman_encoded_rle)
+
+    for_size = True
+    tmp = ''
+    num_ac = 0
+
+    while True:
+        b = bitstream.read(1)
+
+        if not b:
+            break
+
+        tmp += b
+
+        try:
+            if for_size:
+                skip, size_for_value = HUFFMAN_INVERSE_AC_RL_SIZE[tmp]
+                # print('code skip/sss:', tmp)
+            else:
+                value = inverse_components[tmp]
+                # print('code value:', tmp)
+        except KeyError:
+            assert for_size or len(tmp) < size_for_value, (tmp, size_for_value)
+            continue
+
+        if for_size:
+            if not size_for_value:
+                for_size = False
+                value = None
+                # print(skip, size_for_value, value)
+                rle.append((skip, value))
+                num_ac += skip + 1
+            else:
+                inverse_components = HUFFMAN_INVERSE_COMPONENTS[size_for_value]
+        else:
+            # print(skip, size_for_value, value)
+            rle.append((skip, value))
+            num_ac += skip + 1
+
+        if rle and rle[-1] == (0, None) or num_ac == 63:
+            rle_list.append(rle)
+            rle = []
+            num_ac = 0
+
+        tmp = ''
+        for_size = not for_size
+
+    return rle_list

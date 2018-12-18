@@ -8,6 +8,10 @@ from jpeg import JPEGEncoder, JPEGDecoder
 assert sys.version_info >= (3, 6), 'Python 3.6+ is required'
 
 
+def get_output_filename(filename, args):
+    return f'{filename}-{args.m}-{args.scale}-{args.n}.pjpg'
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices=['encode', 'decode', 'aio'], help='aio for all in one')
@@ -21,7 +25,8 @@ def main():
     if args.mode == 'encode':
         for filename in args.filename:
             print(f'Encoding {filename}')
-            JPEGEncoder(filename, args.m, args.scale, args.n).save(f'{filename}.pjpg')
+            output_filename = get_output_filename(filename, args)
+            JPEGEncoder(filename, args.m, args.scale, args.n).save(output_filename)
     elif args.mode == 'decode':
         for filename in args.filename:
             print(f'Decoding {filename}')
@@ -33,7 +38,7 @@ def main():
             print(f'Encoding {filename}')
 
             encoder = JPEGEncoder(filename, args.m, args.scale, args.n)
-            filename = f'{filename}.pjpg'
+            filename = get_output_filename(filename, args)
             encoder.save(filename)
 
             print(f'Decoding {filename}')

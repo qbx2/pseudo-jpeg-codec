@@ -23,7 +23,7 @@ Used DCT instead of FDCT (Fast DCT?)
 # Encoding
 
 - Added len(dc) and len(ac) information to frame header
-- Creates file named {filename}.pjpg
+- Creates file named {filename}-{m}-{scale}-{n}.pjpg
 
 <!-- hack -->
 

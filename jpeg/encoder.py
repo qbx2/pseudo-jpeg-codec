@@ -12,6 +12,8 @@ from jpeg.util import ZIGZAG_INDICES, build_q_table
 
 class JPEGEncoder:
     def __init__(self, path, m, scale, n):
+        assert m >= 0 and scale > 0 and n >= 1
+
         rgb_img = Image.open(path)
         ycbcr_img = rgb_img.convert('YCbCr')
         self.img = numpy.array(ycbcr_img)

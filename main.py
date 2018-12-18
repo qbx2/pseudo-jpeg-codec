@@ -19,8 +19,6 @@ def main():
     pprint(args)
 
     if args.mode == 'encode':
-        assert args.m and args.scale and args.n
-
         for filename in args.filename:
             print(f'Encoding {filename}')
             JPEGEncoder(filename, args.m, args.scale, args.n).save(f'{filename}.pjpg')
@@ -31,8 +29,6 @@ def main():
             with open(filename, 'rb') as f:
                 JPEGDecoder(f).save(f'{filename}.bmp')
     elif args.mode == 'aio':
-        assert args.m and args.scale and args.n
-
         for filename in args.filename:
             print(f'Encoding {filename}')
 

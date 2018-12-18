@@ -13,9 +13,11 @@ ZIGZAG_INDICES_BACKWARD = [
 ZIGZAG_INDICES = numpy.empty(64, dtype=numpy.uint8)
 ZIGZAG_INDICES[ZIGZAG_INDICES_BACKWARD] = numpy.arange(64)
 
+Q_DC = 16
+
 
 def build_q_table(m, scale, n):
     q_table = numpy.empty(64, dtype=numpy.uint8)
-    q_table[ZIGZAG_INDICES] = [16] + [scale] * m + [scale * n] * (63 - m)
+    q_table[ZIGZAG_INDICES] = [Q_DC] + [scale] * m + [scale * n] * (63 - m)
     q_table = numpy.reshape(q_table, (8, 8))
     return q_table

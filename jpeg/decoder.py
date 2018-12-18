@@ -81,7 +81,7 @@ class JPEGDecoder:
 
     @staticmethod
     def denormalize(nblock):
-        return (nblock + 128).astype(numpy.uint8)
+        return (nblock + 128).clip(0, 255).astype(numpy.uint8)
 
     def decode(self):
         f = self.f

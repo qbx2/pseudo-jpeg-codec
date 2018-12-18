@@ -43,3 +43,25 @@ Used DCT instead of FDCT (Fast DCT?)
 Encode + Decode in the single command
 
     $ python3 main.py aio --m <M> --scale <SCALE> --n <N> <filename>
+
+# Examples
+
+#### Example (Original)
+
+![alt example](example.bmp)
+
+#### Example (24-1-4)
+
+![alt example-24-1-4](example.bmp-24-1-4.pjpg.bmp)
+
+#### Example (24-10-4)
+
+![alt example-24-10-4](example.bmp-24-10-4.pjpg.bmp)
+
+#### Example (24-50-4)
+
+![alt example-24-50-4](example.bmp-24-50-4.pjpg.bmp)
+
+#### Example (24-100-4)
+
+![alt example-24-100-4](example.bmp-24-100-4.pjpg.bmp)
